@@ -1,0 +1,22 @@
+# Secretos y datos locales — nunca publicar
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*secret*
+*credential*
+*password*
+*.sqlite
+*.sqlite3
+*.db
+
+# Estado local
+.terraform/
+*.tfstate*
+.DS_Store
+*.log
+
+# Datos de infraestructura
+inventory/
+hosts.local
