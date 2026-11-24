@@ -1,46 +1,69 @@
 # Compose to Cluster
 
-Migración progresiva de una infraestructura Docker/Compose a Kubernetes, documentada mientras se aprende.
+**Proyecto personal de infraestructura:** migración documentada de un homelab de 34 servicios en
+Docker a Kubernetes.
 
-Este repositorio no es un tutorial: es el registro real de un homelab que pasó de 34 contenedores
-en un servidor ARM de 2 vCPU a un clúster k3s, con las decisiones, los errores y las mediciones
-que justificaron cada paso.
+## En treinta segundos
 
-## Estado
+Mantengo 34 servicios corriendo en un servidor propio: gestor de contraseñas, notas, lector de
+RSS, mensajería, monitoreo y ocho aplicaciones que escribí. Todo lo administro yo, sobre un
+servidor ARM de 2 vCPU.
 
-| Fase | Descripción | Estado |
+Este repositorio documenta cómo los estoy migrando a Kubernetes sin romper nada: qué auditar
+antes de mover, qué servicios se quedan y cuáles no, cómo garantizar que los datos sobrevivan, y
+cómo probar que el backup sirve antes de confiar en él.
+
+No es un tutorial ni una lista de comandos. Es el registro real de las decisiones, con lo que medí
+y lo que me equivoqué.
+
+## Resultados hasta ahora
+
+- **34 servicios** inventariados y clasificados para migración, con sus dependencias de red.
+- **23 GB de disco** liberados y **1,2 GB de RAM** recuperada, sin tocar un solo dato.
+- **Backup y restore verificados** con una prueba real de recuperación del gestor de contraseñas.
+- **Clúster k3s administrado desde cero**, con nodo `Ready` y cero reinicios.
+- **Riesgos corregidos**: contenedores privilegiados, sockets de Docker expuestos y bases de
+  datos en redes compartidas.
+- **Decisiones documentadas** en ADRs y procedimientos operativos en runbooks.
+
+## Stack
+
+Docker · Docker Compose · Kubernetes (k3s) · containerd · Linux (Ubuntu ARM64) · redes de
+contenedores · SQLite · Prometheus · Cloudflare Tunnel · Tailscale
+
+## Estado por fase
+
+| Fase | Qué hice | Estado |
 |---|---|---|
-| 0 | Auditoría de la infraestructura Docker | Completada |
-| 0.5 | Backup y restore de Vaultwarden verificados | Completada |
-| 1 | Limpieza del host (35 GB, contenedores basura) | Completada |
-| 2 | Clúster k3s single-node | Completada |
-| 3 | Primer servicio migrado | Pendiente |
-| 4 | Servicios stateless | Pendiente |
+| 0 | Auditar la infraestructura Docker | Completada |
+| 0.5 | Verificar backup y restore del gestor de contraseñas | Completada |
+| 1 | Limpiar el host | Completada |
+| 2 | Instalar un clúster k3s single-node | Completada |
+| 3 | Migrar el primer servicio | En curso |
+| 4 | Servicios sin estado | Pendiente |
 | 5 | Servicios con datos | Pendiente |
-| 6 | Vaultwarden (el crítico, al final) | Pendiente |
+| 6 | El gestor de contraseñas, último | Pendiente |
 
-## El principio
+## La regla que me puse
 
-No se migra por moda. Se migra cuando Kubernetes resuelve un problema o representa una
-oportunidad de aprendizaje justificada. Todo lo que no cumple eso se queda donde está.
+No migro por moda. Migro cuando Kubernetes resuelve un problema real o me enseña algo que vale
+la pena. Lo que no cumple eso se queda en Docker, y lo justifico por escrito.
 
 ## Mapa del repositorio
 
-- `docs/01-arquitectura-actual.md` — cómo era la infraestructura al empezar
+- `docs/01-arquitectura-actual.md` — cómo era todo al empezar
 - `docs/02-auditoria.md` — hallazgos, mediciones y clasificación de servicios
-- `docs/03-backup-y-restore.md` — el sistema de backup y cómo se verificó
-- `docs/04-decisiones.md` — ADRs: qué se decidió y por qué
-- `docs/05-diario.md` — bitácora cronológica del trabajo
-- `docs/runbooks/` — procedimientos operativos
+- `docs/03-backup-y-restore.md` — el sistema de backup y cómo lo verifiqué
+- `docs/04-decisiones.md` — ADRs: qué decidí y por qué
+- `docs/05-diario.md` — bitácora del trabajo
+- `docs/06-como-contarlo.md` — cómo presentar este proyecto en una entrevista
+- `docs/runbooks/` — procedimientos que probé
 
-## Convenciones de publicación
+## Sobre los datos personales
 
-Este repo es público. Por eso:
-
-- Las IPs, dominios y rutas personales están reemplazadas por placeholders (`<tailscale-ip>`,
-  `ejemplo.com`, `<usuario>`).
-- No se publican tokens, claves, `.env` ni capturas con datos reales.
-- Los nombres de servicios se mantienen porque no son sensibles y ayudan a entender el contexto.
+El repo es público, así que reemplacé IPs, dominios y rutas personales por placeholders
+(`<tailscale-ip>`, `ejemplo.com`, `<usuario>`). Los nombres de servicios quedan porque no son
+sensibles y ayudan a entender el contexto.
 
 ## Licencia
 

@@ -1,10 +1,10 @@
-# Arquitectura actual (punto de partida)
+# Mi arquitectura antes de empezar
 
-Registro del estado de la infraestructura antes de cualquier migración. Fecha: 2026-11-23.
+Foto del estado de mi infraestructura antes de tocar nada. Fecha: 2026-11-23.
 
 ## Hardware
 
-Un servidor único en un proveedor cloud, instancia ARM gratuita:
+Un único servidor en un proveedor cloud, instancia ARM del tier gratuito:
 
 | Recurso | Valor |
 |---|---|
@@ -18,79 +18,79 @@ Un servidor único en un proveedor cloud, instancia ARM gratuita:
 | cgroups | v2 |
 | Docker | 29.x, cgroup driver systemd, overlayfs |
 
-Características relevantes para Kubernetes:
+Lo que me importa de esta tabla para Kubernetes:
 
-- **Un solo disco**: el SO, las imágenes, los volúmenes y los datos de usuario comparten `sda1`.
-- **Swap activo**: bloqueante por defecto para kubelet.
-- **Sin capacidad de ampliación**: el tier gratuito del proveedor no permite más CPU/RAM.
+- **Un solo disco.** El sistema, las imágenes, los volúmenes y mis datos comparten `sda1`.
+- **Swap activo.** kubelet lo rechaza por defecto.
+- **No puedo ampliar.** Mi tier gratuito no permite más CPU ni RAM.
 
 ## Servicios
 
-34 contenedores Docker en ejecución, agrupados por función:
+34 contenedores Docker, agrupados por función:
 
 | Capa | Servicios |
 |---|---|
 | Borde / red | Nginx Proxy Manager, Cloudflare Tunnel, AdGuard Home (host), Tailscale |
-| Identidad | Vaultwarden (crítico), un proxy de LLMs |
+| Identidad | Vaultwarden (mi dato crítico), un proxy de LLMs |
 | Datos / productividad | Trilium, Linkwarden + Postgres, FreshRSS, Excalidraw, Homepage |
 | Mensajería | Evolution API + Postgres + Redis |
 | Casa / IoT | Home Assistant |
-| Apps propias | 8 aplicaciones propias (Go, Node, Python) |
+| Apps propias | 8 aplicaciones mías (Go, Node, Python) |
 | Observabilidad | Prometheus, Grafana, Alertmanager, Blackbox, node-exporter, cAdvisor |
-| Operación | Watchtower, un contenedor interactivo abandonado |
+| Operación | Watchtower, un contenedor interactivo que dejé olvidado |
 
-## Topología de red
+## Cómo entra el tráfico
 
 ```
 Internet
    │
    ▼
-Cloudflare Tunnel (outbound-only)
+Cloudflare Tunnel (solo salida)
    │
    ▼
 nginx-proxy :443 ──► red "proxy" (22 contenedores)
-                       ├── apps stateless
+                       ├── apps sin estado
                        ├── linkwarden-db  ← base de datos en red compartida
                        └── grafana / alertmanager
 ```
 
-Hallazgos estructurales:
+Lo que veo cuando lo dibujo:
 
-- **No hay puertos web publicados en el host.** Todo entra por el túnel de Cloudflare. Bien.
-- **La red `proxy` es plana**: 22 contenedores se ven entre sí sin restricciones.
-- **Dos excepciones publican en `0.0.0.0`** (saltando el ingress): la API de mensajería y un juego web.
-- **Dos redes se llaman "internal" pero no lo son** (`Internal: false`): el nombre miente.
-- **Postgres de Linkwarden vive en la red `proxy`**, alcanzable por 22 vecinos.
+- **No tengo puertos web abiertos en el host.** Todo entra por el túnel. Eso lo hice bien.
+- **La red `proxy` es plana.** 22 contenedores se ven entre sí sin restricciones.
+- **Dos excepciones publican en `0.0.0.0`** y se saltan el proxy: la API de mensajería y un juego.
+- **Dos redes se llaman "internal" y no lo son.** El nombre miente.
+- **El Postgres de Linkwarden vive en `proxy`**, alcanzable por 22 vecinos.
 
-## Persistencia
+## Dónde viven los datos
 
-Dos patrones conviviendo:
+Dos patrones conviviendo, sin un criterio claro:
 
 1. **Bind mounts** a `/home/ubuntu/self-hosted/<servicio>/data` — 20 servicios.
 2. **Volúmenes nombrados de Docker** — 4 servicios.
 
-Consecuencia: los datos son visibles y respaldables con `tar`, pero no hay separación entre
-"dato de aplicación" y "home del usuario". En Kubernetes cada uno se convierte en un PVC o un
-hostPath, y hay que decidir cuál es cuál.
+Es cómodo para respaldar con `tar`, pero mezcla "dato de aplicación" con "mi home". En Kubernetes
+cada uno va a ser un PVC o un hostPath, y voy a tener que decidir cuál es cuál.
 
-## Observabilidad
+## Monitoreo
 
-Prometheus en el host principal recolecta métricas de un segundo servidor (más chico) a través
-de Tailscale. El colector vive en el mismo host que vigila: si el host cae, el monitoreo cae con él.
+Prometheus corre en el servidor principal y recolecta métricas de un segundo servidor más chico,
+a través de Tailscale. El que vigila vive en el mismo lugar que lo vigilado: si el principal cae,
+el monitoreo cae con él.
 
-## Consumo de recursos medido
+## Consumo real
 
 | Componente | RAM |
 |---|---|
-| Contenedores (32) | ~3 GB |
+| Mis 32 contenedores | ~3 GB |
 | Stack de agentes (Hermes + opencode) | ~3 GB |
-| Clúster k3s (previo, no documentado) | 432 MB |
+| Clúster k3s que no sabía que tenía | 432 MB |
 
-## El hallazgo que cambió el plan
+## El hallazgo que me cambió el plan
 
-Durante la auditoría se descubrió un **clúster k3s corriendo desde un mes antes**, instalado
-sin documentación, con workloads de un tutorial abandonado y componentes del sistema con
-cientos de reinicios por falta de memoria. Ese hallazgo reordenó el proyecto: no había que
-instalar Kubernetes, había que entender qué había y empezar de nuevo con criterio.
+Mientras auditaba descubrí que **tenía un clúster k3s corriendo desde hacía un mes**. Lo instalé
+sin documentarlo, dejé workloads de un tutorial y los componentes del sistema se venían
+reiniciando solos por falta de memoria. Ese descubrimiento reordenó todo: no tenía que instalar
+Kubernetes, tenía que entender qué había y empezar de nuevo con criterio.
 
-Ver `02-auditoria.md`.
+Lo cuento en `02-auditoria.md`.
